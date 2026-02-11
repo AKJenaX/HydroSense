@@ -120,17 +120,16 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
   /* ================= AUTO COUNTDOWN ================= */
   useEffect(() => {
-    if (remainingSeconds === null) return;
+  if (remainingSeconds === null) return;
 
-    const interval = setInterval(() => {
-      setRemainingSeconds(prev => {
-        if (prev <= 60) return 0;
-        return prev - 60;
-      });
-    }, 60000); // update every minute
+  const interval = setInterval(() => {
+    setRemainingSeconds(prev => Math.max(prev - 60, 0));
+  }, 60000);
 
-    return () => clearInterval(interval);
-  }, [remainingSeconds]);
+  return () => clearInterval(interval);
+}, [remainingSeconds !== null]);
+
+
 
   /* ================= SET USAGE TYPE ================= */
   const changeUsageType = async (type) => {
