@@ -224,7 +224,12 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
                 Usage Type {isFlowStarted && '(locked)'}
               </div>
 
-              <select disabled={isFlowStarted} value={usageType}>
+                          <select
+              className="usage-dropdown"
+              disabled={isFlowStarted}
+              value={usageType}
+            >
+
                 <option value="home">Home</option>
                 <option value="apartment">Apartment</option>
                 <option value="commercial">Commercial</option>

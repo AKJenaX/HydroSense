@@ -260,6 +260,33 @@ app.post('/api/verify-payment', (req, res) => {
   res.json({ success: true });
 });
 
+// Water Usage Update (ESP32 / Simulator)
+app.post('/api/water-usage', (req, res) => {
+  const { userId, borewellNo, totalLiters } = req.body;
+
+  if (totalLiters === undefined) {
+    return res.status(400).json({ error: 'totalLiters required' });
+  }
+
+  const obj = getUserData(userId, borewellNo);
+  checkAndResetDaily(obj);
+
+  let value = Number(totalLiters);
+  if (isNaN(value) || value < 0) value = 0;
+
+  obj.usedToday = value;
+
+  const dashboardData = calculateDashboardData(obj, userId, borewellNo);
+
+  broadcastToUser(userId, borewellNo, {
+    type: 'update',
+    data: dashboardData
+  });
+
+  res.json({ success: true, data: dashboardData });
+});
+
+
 /* ================= FRONTEND ================= */
 
 app.use(express.static(path.join(__dirname, '../frontend/build')));
