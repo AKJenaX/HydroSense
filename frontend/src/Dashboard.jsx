@@ -25,6 +25,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
   const [history, setHistory] = useState([]);
   const [connected, setConnected] = useState(false);
   const [alert, setAlert] = useState(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(null);
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -35,7 +36,15 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
       .then(res => res.json())
       .then(data => {
         setDashboardData(data);
-        setHistory([]);
+
+        // Convert "18h 47m" → seconds
+        const [h, m] = data.remainingTime
+          .replace('h', '')
+          .replace('m', '')
+          .split(' ')
+          .map(Number);
+
+        setRemainingSeconds(h * 3600 + m * 60);
       })
       .catch(console.error);
   }, [userId, borewellNo]);
@@ -64,9 +73,18 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
           if (res.type === 'update' && res.data) {
             setDashboardData(res.data);
 
-            setHistory(h =>
+            // Update countdown from backend
+            const [h, m] = res.data.remainingTime
+              .replace('h', '')
+              .replace('m', '')
+              .split(' ')
+              .map(Number);
+
+            setRemainingSeconds(h * 3600 + m * 60);
+
+            setHistory(his =>
               [
-                ...h,
+                ...his,
                 {
                   time: new Date().toLocaleTimeString(),
                   used: res.data.usedToday
@@ -100,6 +118,20 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
     };
   }, [userId, borewellNo]);
 
+  /* ================= AUTO COUNTDOWN ================= */
+  useEffect(() => {
+    if (remainingSeconds === null) return;
+
+    const interval = setInterval(() => {
+      setRemainingSeconds(prev => {
+        if (prev <= 60) return 0;
+        return prev - 60;
+      });
+    }, 60000); // update every minute
+
+    return () => clearInterval(interval);
+  }, [remainingSeconds]);
+
   /* ================= SET USAGE TYPE ================= */
   const changeUsageType = async (type) => {
     await fetch(`${API_BASE}/api/usage-type`, {
@@ -120,12 +152,18 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
     usageType,
     dailyLimit,
     usedToday,
-    remainingTime,
     status
   } = dashboardData;
 
   const usagePercent = Math.min(100, (usedToday / dailyLimit) * 100);
   const isFlowStarted = usedToday > 0;
+
+  const formattedRemaining =
+    remainingSeconds !== null
+      ? `${Math.floor(remainingSeconds / 3600)}h ${Math.floor(
+          (remainingSeconds % 3600) / 60
+        )}m`
+      : dashboardData.remainingTime;
 
   /* ================= UI ================= */
   return (
@@ -171,7 +209,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
           <div className="metrics-section">
             <div className="metric-card">
               <div className="metric-label">Remaining Time</div>
-              <div className="metric-value">{remainingTime}</div>
+              <div className="metric-value">{formattedRemaining}</div>
 
               <div className="metric-label">Water Used</div>
               <div className={`metric-value ${status}`}>
