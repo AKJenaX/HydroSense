@@ -5,7 +5,10 @@ const WebSocket = require('ws');
 const cors = require('cors');
 const path = require('path');
 
-// ================= TELEGRAM (ENV VARIABLES) =================
+// ================= CONSTANTS =================
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // IST = UTC + 5:30
+
+// ================= TELEGRAM =================
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -50,6 +53,25 @@ const USAGE_LIMITS = {
 // ================= USER STORE =================
 const userData = new Map();
 
+// ================= GET IST MIDNIGHT TIMESTAMP =================
+function getISTMidnightTimestamp() {
+  const nowUTC = Date.now();
+  const nowIST = nowUTC + IST_OFFSET_MS;
+
+  const istDate = new Date(nowIST);
+
+  // Set to 00:00 IST
+  istDate.setHours(0, 0, 0, 0);
+
+  // Convert back to UTC timestamp
+  return istDate.getTime() - IST_OFFSET_MS;
+}
+
+// ================= GET NEXT IST MIDNIGHT =================
+function getNextISTMidnightTimestamp() {
+  return getISTMidnightTimestamp() + 24 * 60 * 60 * 1000;
+}
+
 // ================= USER INIT =================
 function getUserData(userId, borewellNo) {
   const key = `${userId}_${borewellNo}`;
@@ -63,7 +85,7 @@ function getUserData(userId, borewellNo) {
       usedToday: 0,
       status: 'normal',
       lastAlert: null,
-      lastReset: new Date().setHours(0, 0, 0, 0)
+      lastReset: getISTMidnightTimestamp()
     });
   }
 
@@ -72,24 +94,24 @@ function getUserData(userId, borewellNo) {
 
 // ================= DAILY RESET =================
 function checkAndResetDaily(obj) {
-  const today = new Date().setHours(0, 0, 0, 0);
+  const todayMidnight = getISTMidnightTimestamp();
 
-  if (obj.lastReset < today) {
+  if (obj.lastReset < todayMidnight) {
     obj.usedToday = 0;
     obj.status = 'normal';
     obj.lastAlert = null;
-    obj.lastReset = today;
-    console.log('🔄 Daily reset completed');
+    obj.lastReset = todayMidnight;
+    console.log('🔄 Daily reset completed (IST)');
   }
 }
 
 // ================= TIME LEFT =================
 function getRemainingTime() {
-  const now = new Date();
-  const midnight = new Date();
-  midnight.setHours(24, 0, 0, 0);
+  const now = Date.now();
+  const nextMidnight = getNextISTMidnightTimestamp();
 
-  const diff = midnight - now;
+  const diff = nextMidnight - now;
+
   const h = Math.floor(diff / (1000 * 60 * 60));
   const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
@@ -185,13 +207,10 @@ wss.on('connection', ws => {
 });
 
 // ================= API ROUTES =================
-
-// 🔥 NEW ROUTE - INITIAL DASHBOARD LOAD
 app.get('/api/dashboard/:userId/:borewellNo', (req, res) => {
   const { userId, borewellNo } = req.params;
 
   const obj = getUserData(userId, borewellNo);
-
   const dashboardData = calculateDashboardData(obj, userId, borewellNo);
 
   res.json(dashboardData);
