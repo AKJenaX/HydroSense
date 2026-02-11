@@ -1,0 +1,329 @@
+/* ================== RESET ================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ================== PAGE ================== */
+.dashboard-container {
+  min-height: 100vh;
+  background:
+    radial-gradient(1000px circle at 20% 10%, rgba(59, 130, 246, 0.12), transparent 45%),
+    radial-gradient(900px circle at 80% 90%, rgba(52, 211, 153, 0.10), transparent 50%),
+    linear-gradient(135deg, #E6F0FF, #CFE0FF);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 28px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ================== CARD ================== */
+.dashboard-card {
+  width: 100%;
+  max-width: 480px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(2, 6, 23, 0.95),
+      rgba(2, 6, 23, 0.85)
+    );
+  backdrop-filter: blur(28px);
+  border-radius: 26px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow:
+    0 40px 90px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+/* ================== HEADER ================== */
+.dashboard-header {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(2, 6, 23, 0.95),
+      rgba(15, 23, 42, 0.95)
+    );
+  padding: 28px 30px;
+  position: relative;
+  text-align: center;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.dashboard-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: #E5E7EB;
+}
+
+/* ================== CONNECTION ================== */
+.connection-status {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.connection-status.connected {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22C55E;
+}
+
+.connection-status.disconnected {
+  background: rgba(239, 68, 68, 0.25);
+  color: #EF4444;
+}
+
+/* ================== CONTENT ================== */
+.dashboard-content {
+  padding: 26px;
+}
+
+/* ================== USER INFO ================== */
+.user-info {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(30, 41, 59, 0.95),
+      rgba(37, 54, 82, 0.95)
+    );
+  border-radius: 18px;
+  padding: 22px;
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 14px 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: all 0.3s ease;
+}
+
+.user-info:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+.info-label {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  color: #94A3B8;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.info-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #E5E7EB;
+}
+
+/* ================== USAGE DROPDOWN ================== */
+.usage-dropdown {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: #1E293B;
+  font-size: 14px;
+  font-weight: 600;
+  color: #E5E7EB;
+}
+
+.usage-dropdown:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ================== METRICS ================== */
+.metrics-section {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.metric-card {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(30, 41, 59, 0.95),
+      rgba(37, 54, 82, 0.95)
+    );
+  border-radius: 20px;
+  padding: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+.metric-label {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #94A3B8;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.metric-value {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  color: #E5E7EB;
+}
+
+/* ===== STATE COLORS ===== */
+.metric-value.normal { color: #22C55E; }
+.metric-value.warning { color: #EAB308; }
+.metric-value.exceeded { color: #EF4444; }
+
+/* ================== PROGRESS ================== */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 14px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill.normal {
+  background: linear-gradient(90deg, #22C55E, #16A34A);
+}
+
+.progress-fill.warning {
+  background: linear-gradient(90deg, #FACC15, #EAB308);
+}
+
+.progress-fill.exceeded {
+  background: linear-gradient(90deg, #EF4444, #DC2626);
+}
+
+.progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0.25),
+    rgba(255,255,255,0.05),
+    rgba(255,255,255,0.25)
+  );
+  opacity: 0.3;
+  animation: waterShimmer 6.5s linear infinite;
+}
+
+/* ================== STATUS ================== */
+.status-section {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.status-indicator.normal {
+  background: rgba(34, 197, 94, 0.22);
+  color: #22C55E;
+}
+
+.status-indicator.warning {
+  background: rgba(234, 179, 8, 0.22);
+  color: #EAB308;
+}
+
+.status-indicator.exceeded {
+  background: rgba(239, 68, 68, 0.25);
+  color: #EF4444;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ================== MESSAGE ================== */
+.message {
+  margin: 0 26px 26px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.message.normal {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22C55E;
+}
+
+.message.warning {
+  background: rgba(234, 179, 8, 0.2);
+  color: #EAB308;
+}
+
+.message.exceeded {
+  background: rgba(239, 68, 68, 0.22);
+  color: #EF4444;
+}
+
+/* ================== TOAST ================== */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  padding: 16px 22px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #020617;
+  color: #E5E7EB;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+}
+
+/* ================== MOBILE ================== */
+@media (max-width: 520px) {
+  .dashboard-card {
+    border-radius: 20px;
+  }
+  .metric-value {
+    font-size: 22px;
+  }
+}
+
+/* ================== SHIMMER ANIMATION ================== */
+@keyframes waterShimmer {
+  from { transform: translateX(-60%); }
+  to { transform: translateX(60%); }
+}
