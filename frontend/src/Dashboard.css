@@ -455,3 +455,28 @@
   font-weight: 600;
   text-align: center;
 }
+
+.dashboard-layout {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+}
+
+.desktop-recharge {
+  width: 380px;
+  align-self: flex-start;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .desktop-recharge {
+    width: 100%;
+    max-width: 480px;
+  }
+}

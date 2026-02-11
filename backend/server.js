@@ -1,19 +1,28 @@
+require('dotenv').config();
+
 const axios = require('axios');
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const cors = require('cors');
 const path = require('path');
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
 
-// ================= CONSTANTS =================
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+/* ================= CONSTANTS ================= */
 const COST_PER_LITER = 10;
 
-// ================= TELEGRAM =================
+/* ================= RAZORPAY INIT ================= */
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
+
+/* ================= TELEGRAM ================= */
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-// ================= APP SETUP =================
+/* ================= APP SETUP ================= */
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -21,7 +30,7 @@ const wss = new WebSocket.Server({ server });
 app.use(cors());
 app.use(express.json());
 
-// ================= TELEGRAM ALERT =================
+/* ================= TELEGRAM ALERT ================= */
 async function sendTelegramAlert(message) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
 
@@ -34,13 +43,12 @@ async function sendTelegramAlert(message) {
         parse_mode: 'Markdown'
       }
     );
-    console.log('📨 Telegram alert sent');
   } catch (err) {
-    console.error('❌ Telegram error:', err.message);
+    console.error('Telegram error:', err.message);
   }
 }
 
-// ================= LIMITS =================
+/* ================= LIMITS ================= */
 const USAGE_LIMITS = {
   home: 100,
   apartment: 500,
@@ -48,30 +56,32 @@ const USAGE_LIMITS = {
   industry: 5000
 };
 
-// ================= USER STORE =================
+/* ================= USER STORE ================= */
 const userData = new Map();
 
-// ================= TIME HELPERS =================
-function getISTMidnightTimestamp() {
-  const nowUTC = Date.now();
-  const nowIST = nowUTC + IST_OFFSET_MS;
-  const istDate = new Date(nowIST);
-  istDate.setHours(0, 0, 0, 0);
-  return istDate.getTime() - IST_OFFSET_MS;
-}
+/* ================= TIME HELPERS ================= */
 
 function getNextISTMidnightTimestamp() {
-  return getISTMidnightTimestamp() + 24 * 60 * 60 * 1000;
+  const now = new Date();
+  const istNow = new Date(
+    now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+
+  const msToday =
+    istNow.getHours() * 3600000 +
+    istNow.getMinutes() * 60000 +
+    istNow.getSeconds() * 1000 +
+    istNow.getMilliseconds();
+
+  return Date.now() + (86400000 - msToday);
 }
 
-function getRemainingTime() {
-  const diff = getNextISTMidnightTimestamp() - Date.now();
-  const h = Math.floor(diff / (1000 * 60 * 60));
-  const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  return `${h}h ${m}m`;
+function getTodayISTMidnightTimestamp() {
+  return getNextISTMidnightTimestamp() - 86400000;
 }
 
-// ================= USER INIT =================
+/* ================= USER INIT ================= */
+
 function getUserData(userId, borewellNo) {
   const key = `${userId}_${borewellNo}`;
 
@@ -87,16 +97,17 @@ function getUserData(userId, borewellNo) {
       totalExtraAmountPaid: 0,
       status: 'normal',
       lastAlert: null,
-      lastReset: getISTMidnightTimestamp()
+      lastReset: getTodayISTMidnightTimestamp()
     });
   }
 
   return userData.get(key);
 }
 
-// ================= DAILY RESET =================
+/* ================= DAILY RESET ================= */
+
 function checkAndResetDaily(obj) {
-  const todayMidnight = getISTMidnightTimestamp();
+  const todayMidnight = getTodayISTMidnightTimestamp();
 
   if (obj.lastReset < todayMidnight) {
     obj.usedToday = 0;
@@ -106,11 +117,11 @@ function checkAndResetDaily(obj) {
     obj.status = 'normal';
     obj.lastAlert = null;
     obj.lastReset = todayMidnight;
-    console.log('🔄 Daily reset completed (IST)');
   }
 }
 
-// ================= DASHBOARD LOGIC =================
+/* ================= DASHBOARD LOGIC ================= */
+
 function calculateDashboardData(obj, userId, borewellNo) {
   checkAndResetDaily(obj);
 
@@ -122,32 +133,8 @@ function calculateDashboardData(obj, userId, borewellNo) {
 
   if (used >= limit) {
     status = 'exceeded';
-
-    if (obj.lastAlert !== 'exceeded') {
-      sendTelegramAlert(
-        `🚫 *WATER LIMIT REACHED*\n\n` +
-        `Borewell: ${borewellNo}\n` +
-        `Used: ${limit} / ${limit} L\n\n` +
-        `❌ Supply stopped`
-      );
-      obj.lastAlert = 'exceeded';
-    }
-
   } else if (used >= warningLimit) {
     status = 'warning';
-
-    if (obj.lastAlert !== 'warning') {
-      sendTelegramAlert(
-        `⚠️ *WATER USAGE WARNING*\n\n` +
-        `Borewell: ${borewellNo}\n` +
-        `Used: ${used.toFixed(1)} / ${limit} L\n\n` +
-        `⚠️ 80% limit crossed`
-      );
-      obj.lastAlert = 'warning';
-    }
-
-  } else {
-    obj.lastAlert = null;
   }
 
   obj.status = status;
@@ -159,14 +146,15 @@ function calculateDashboardData(obj, userId, borewellNo) {
     dailyLimit: limit,
     usedToday: used,
     remainingLitre: Math.max(0, limit - used),
-    remainingTime: getRemainingTime(),
+    nextResetAt: getNextISTMidnightTimestamp(),
     status,
     extraLitersPurchased: obj.extraLitersPurchased,
     totalExtraAmountPaid: obj.totalExtraAmountPaid
   };
 }
 
-// ================= WEBSOCKET =================
+/* ================= WEBSOCKET ================= */
+
 function broadcastToUser(userId, borewellNo, payload) {
   const key = `${userId}_${borewellNo}`;
 
@@ -179,27 +167,23 @@ function broadcastToUser(userId, borewellNo, payload) {
 
 wss.on('connection', ws => {
   ws.on('message', msg => {
-    try {
-      const data = JSON.parse(msg);
+    const data = JSON.parse(msg);
 
-      if (data.type === 'subscribe') {
-        ws.userKey = `${data.userId}_${data.borewellNo}`;
+    if (data.type === 'subscribe') {
+      ws.userKey = `${data.userId}_${data.borewellNo}`;
 
-        const dashboardData = calculateDashboardData(
-          getUserData(data.userId, data.borewellNo),
-          data.userId,
-          data.borewellNo
-        );
+      const dashboardData = calculateDashboardData(
+        getUserData(data.userId, data.borewellNo),
+        data.userId,
+        data.borewellNo
+      );
 
-        ws.send(JSON.stringify({ type: 'update', data: dashboardData }));
-      }
-    } catch (err) {
-      console.error('WebSocket error:', err.message);
+      ws.send(JSON.stringify({ type: 'update', data: dashboardData }));
     }
   });
 });
 
-// ================= API ROUTES =================
+/* ================= API ROUTES ================= */
 
 // Dashboard
 app.get('/api/dashboard/:userId/:borewellNo', (req, res) => {
@@ -208,64 +192,55 @@ app.get('/api/dashboard/:userId/:borewellNo', (req, res) => {
   res.json(calculateDashboardData(obj, userId, borewellNo));
 });
 
-// Change usage type
-app.post('/api/usage-type', (req, res) => {
-  const { userId, borewellNo, usageType } = req.body;
+/* ================= CREATE ORDER ================= */
 
-  if (!USAGE_LIMITS[usageType])
-    return res.status(400).json({ error: 'Invalid usage type' });
+app.post('/api/create-order', async (req, res) => {
+  try {
+    const { userId, borewellNo, extraLiters } = req.body;
 
-  const obj = getUserData(userId, borewellNo);
+    if (!extraLiters || extraLiters <= 0)
+      return res.status(400).json({ error: "Invalid liters" });
 
-  obj.usageType = usageType;
-  obj.baseLimit = USAGE_LIMITS[usageType];
-  obj.dailyLimit = USAGE_LIMITS[usageType];
-  obj.usedToday = 0;
-  obj.status = 'normal';
-  obj.lastAlert = null;
+    const amount = extraLiters * COST_PER_LITER * 100;
 
-  const dashboardData = calculateDashboardData(obj, userId, borewellNo);
+    const order = await razorpay.orders.create({
+      amount,
+      currency: "INR",
+      receipt: `${userId}_${borewellNo}_${Date.now()}`
+    });
 
-  broadcastToUser(userId, borewellNo, {
-    type: 'update',
-    data: dashboardData
-  });
+    res.json({
+      orderId: order.id,
+      amount
+    });
 
-  res.json({ success: true, data: dashboardData });
+  } catch (err) {
+    res.status(500).json({ error: "Order creation failed" });
+  }
 });
 
-// Water Usage Update (ESP32 sync)
-app.post('/api/water-usage', (req, res) => {
-  const { userId, borewellNo, totalLiters } = req.body;
+/* ================= VERIFY PAYMENT ================= */
 
-  if (totalLiters === undefined)
-    return res.status(400).json({ error: 'totalLiters required' });
+app.post('/api/verify-payment', (req, res) => {
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+    userId,
+    borewellNo,
+    extraLiters
+  } = req.body;
 
-  const obj = getUserData(userId, borewellNo);
-  checkAndResetDaily(obj);
+  const generatedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+    .update(razorpay_order_id + "|" + razorpay_payment_id)
+    .digest("hex");
 
-  let value = Number(totalLiters);
-  if (isNaN(value) || value < 0) value = 0;
+  if (generatedSignature !== razorpay_signature) {
+    return res.status(400).json({ error: "Payment verification failed" });
+  }
 
-  obj.usedToday = value;
-
-  const dashboardData = calculateDashboardData(obj, userId, borewellNo);
-
-  broadcastToUser(userId, borewellNo, {
-    type: 'update',
-    data: dashboardData
-  });
-
-  res.json({ success: true, data: dashboardData });
-});
-
-// Recharge Extra Liters
-app.post('/api/recharge', (req, res) => {
-  const { userId, borewellNo, extraLiters } = req.body;
-
-  if (!extraLiters || extraLiters <= 0)
-    return res.status(400).json({ error: "Invalid liters amount" });
-
+  // VERIFIED — Add liters
   const obj = getUserData(userId, borewellNo);
 
   const liters = Number(extraLiters);
@@ -282,18 +257,20 @@ app.post('/api/recharge', (req, res) => {
     data: dashboardData
   });
 
-  res.json({ success: true, amountPaid: amount, data: dashboardData });
+  res.json({ success: true });
 });
 
-// ================= FRONTEND =================
+/* ================= FRONTEND ================= */
+
 app.use(express.static(path.join(__dirname, '../frontend/build')));
 app.get('*', (req, res) =>
   res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'))
 );
 
-// ================= START =================
+/* ================= START ================= */
+
 const PORT = process.env.PORT || 3001;
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
