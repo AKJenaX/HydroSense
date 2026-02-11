@@ -327,3 +327,131 @@
   from { transform: translateX(-60%); }
   to { transform: translateX(60%); }
 }
+
+/* ================== EXTRA USAGE SUMMARY ================== */
+.extra-summary {
+  margin-top: 22px;
+  padding: 20px;
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(30, 41, 59, 0.95),
+      rgba(37, 54, 82, 0.95)
+    );
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.extra-summary h3 {
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #94A3B8;
+  margin-bottom: 12px;
+}
+
+.extra-summary p {
+  font-size: 14px;
+  font-weight: 600;
+  color: #E5E7EB;
+  margin-bottom: 6px;
+}
+
+/* ================== RECHARGE SECTION ================== */
+.recharge-section {
+  margin-top: 22px;
+  padding: 22px;
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(30, 41, 59, 0.95),
+      rgba(37, 54, 82, 0.95)
+    );
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  text-align: center;
+}
+
+.recharge-section h3 {
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #EF4444;
+  margin-bottom: 16px;
+}
+
+/* ================== INPUT ================== */
+.recharge-section input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: #1E293B;
+  font-size: 14px;
+  font-weight: 600;
+  color: #E5E7EB;
+  outline: none;
+  transition: 0.3s ease;
+}
+
+.recharge-section input:focus {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+/* ================== AMOUNT TEXT ================== */
+.recharge-section p {
+  margin-top: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #EF4444;
+}
+
+/* ================== QR CODE WRAPPER ================== */
+.recharge-section canvas {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 16px;
+  background: white;
+}
+
+/* ================== BUTTON ================== */
+.recharge-section button {
+  margin-top: 18px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(90deg, #EF4444, #DC2626);
+  color: white;
+}
+
+.recharge-section button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.35);
+}
+
+.recharge-section button:active {
+  transform: scale(0.98);
+}
+
+/* ================== STATUS MESSAGE IMPROVED ================== */
+.message {
+  margin: 0 26px 20px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}

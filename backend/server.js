@@ -7,6 +7,7 @@ const path = require('path');
 
 // ================= CONSTANTS =================
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const COST_PER_LITER = 10;
 
 // ================= TELEGRAM =================
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -20,9 +21,9 @@ const wss = new WebSocket.Server({ server });
 app.use(cors());
 app.use(express.json());
 
-// ================= TELEGRAM =================
+// ================= TELEGRAM ALERT =================
 async function sendTelegramAlert(message) {
-  if (!TELEGRAM_BOT_TOKEN || !TEGRAM_CHAT_ID) return;
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
 
   try {
     await axios.post(
@@ -79,8 +80,11 @@ function getUserData(userId, borewellNo) {
       name: `User ${userId}`,
       borewellNo,
       usageType: 'home',
+      baseLimit: USAGE_LIMITS.home,
       dailyLimit: USAGE_LIMITS.home,
       usedToday: 0,
+      extraLitersPurchased: 0,
+      totalExtraAmountPaid: 0,
       status: 'normal',
       lastAlert: null,
       lastReset: getISTMidnightTimestamp()
@@ -96,6 +100,9 @@ function checkAndResetDaily(obj) {
 
   if (obj.lastReset < todayMidnight) {
     obj.usedToday = 0;
+    obj.dailyLimit = obj.baseLimit;
+    obj.extraLitersPurchased = 0;
+    obj.totalExtraAmountPaid = 0;
     obj.status = 'normal';
     obj.lastAlert = null;
     obj.lastReset = todayMidnight;
@@ -125,6 +132,7 @@ function calculateDashboardData(obj, userId, borewellNo) {
       );
       obj.lastAlert = 'exceeded';
     }
+
   } else if (used >= warningLimit) {
     status = 'warning';
 
@@ -137,6 +145,7 @@ function calculateDashboardData(obj, userId, borewellNo) {
       );
       obj.lastAlert = 'warning';
     }
+
   } else {
     obj.lastAlert = null;
   }
@@ -151,7 +160,9 @@ function calculateDashboardData(obj, userId, borewellNo) {
     usedToday: used,
     remainingLitre: Math.max(0, limit - used),
     remainingTime: getRemainingTime(),
-    status
+    status,
+    extraLitersPurchased: obj.extraLitersPurchased,
+    totalExtraAmountPaid: obj.totalExtraAmountPaid
   };
 }
 
@@ -189,6 +200,8 @@ wss.on('connection', ws => {
 });
 
 // ================= API ROUTES =================
+
+// Dashboard
 app.get('/api/dashboard/:userId/:borewellNo', (req, res) => {
   const { userId, borewellNo } = req.params;
   const obj = getUserData(userId, borewellNo);
@@ -205,6 +218,7 @@ app.post('/api/usage-type', (req, res) => {
   const obj = getUserData(userId, borewellNo);
 
   obj.usageType = usageType;
+  obj.baseLimit = USAGE_LIMITS[usageType];
   obj.dailyLimit = USAGE_LIMITS[usageType];
   obj.usedToday = 0;
   obj.status = 'normal';
@@ -220,7 +234,7 @@ app.post('/api/usage-type', (req, res) => {
   res.json({ success: true, data: dashboardData });
 });
 
-// 🔥 FINAL FIXED WATER SYNC ROUTE
+// Water Usage Update (ESP32 sync)
 app.post('/api/water-usage', (req, res) => {
   const { userId, borewellNo, totalLiters } = req.body;
 
@@ -231,13 +245,9 @@ app.post('/api/water-usage', (req, res) => {
   checkAndResetDaily(obj);
 
   let value = Number(totalLiters);
-
   if (isNaN(value) || value < 0) value = 0;
 
-  // Clamp to daily limit
-  obj.usedToday = Math.min(value, obj.dailyLimit);
-
-  console.log(`💧 Updated usage: ${obj.usedToday} L`);
+  obj.usedToday = value;
 
   const dashboardData = calculateDashboardData(obj, userId, borewellNo);
 
@@ -247,6 +257,32 @@ app.post('/api/water-usage', (req, res) => {
   });
 
   res.json({ success: true, data: dashboardData });
+});
+
+// Recharge Extra Liters
+app.post('/api/recharge', (req, res) => {
+  const { userId, borewellNo, extraLiters } = req.body;
+
+  if (!extraLiters || extraLiters <= 0)
+    return res.status(400).json({ error: "Invalid liters amount" });
+
+  const obj = getUserData(userId, borewellNo);
+
+  const liters = Number(extraLiters);
+  const amount = liters * COST_PER_LITER;
+
+  obj.dailyLimit += liters;
+  obj.extraLitersPurchased += liters;
+  obj.totalExtraAmountPaid += amount;
+
+  const dashboardData = calculateDashboardData(obj, userId, borewellNo);
+
+  broadcastToUser(userId, borewellNo, {
+    type: 'update',
+    data: dashboardData
+  });
+
+  res.json({ success: true, amountPaid: amount, data: dashboardData });
 });
 
 // ================= FRONTEND =================

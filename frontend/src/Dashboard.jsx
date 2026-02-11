@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './Dashboard.css';
+import { QRCodeCanvas } from 'qrcode.react';
 import {
   LineChart,
   Line,
@@ -26,9 +27,21 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
   const [connected, setConnected] = useState(false);
   const [alert, setAlert] = useState(null);
   const [remainingSeconds, setRemainingSeconds] = useState(null);
+  const [extraLiters, setExtraLiters] = useState('');
 
   const wsRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
+  const reconnectRef = useRef(null);
+
+  /* ================= HELPER ================= */
+  const convertTimeToSeconds = (timeStr) => {
+    if (!timeStr) return 0;
+    const [h, m] = timeStr
+      .replace('h', '')
+      .replace('m', '')
+      .split(' ')
+      .map(Number);
+    return h * 3600 + m * 60;
+  };
 
   /* ================= INITIAL LOAD ================= */
   useEffect(() => {
@@ -36,15 +49,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
       .then(res => res.json())
       .then(data => {
         setDashboardData(data);
-
-        // Convert "18h 47m" → seconds
-        const [h, m] = data.remainingTime
-          .replace('h', '')
-          .replace('m', '')
-          .split(' ')
-          .map(Number);
-
-        setRemainingSeconds(h * 3600 + m * 60);
+        setRemainingSeconds(convertTimeToSeconds(data.remainingTime));
       })
       .catch(console.error);
   }, [userId, borewellNo]);
@@ -57,34 +62,25 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
       ws.onopen = () => {
         setConnected(true);
-        ws.send(
-          JSON.stringify({
-            type: 'subscribe',
-            userId,
-            borewellNo
-          })
-        );
+        ws.send(JSON.stringify({
+          type: 'subscribe',
+          userId,
+          borewellNo
+        }));
       };
 
       ws.onmessage = event => {
         try {
           const res = JSON.parse(event.data);
-
           if (res.type === 'update' && res.data) {
             setDashboardData(res.data);
+            setRemainingSeconds(
+              convertTimeToSeconds(res.data.remainingTime)
+            );
 
-            // Update countdown from backend
-            const [h, m] = res.data.remainingTime
-              .replace('h', '')
-              .replace('m', '')
-              .split(' ')
-              .map(Number);
-
-            setRemainingSeconds(h * 3600 + m * 60);
-
-            setHistory(his =>
+            setHistory(prev =>
               [
-                ...his,
+                ...prev,
                 {
                   time: new Date().toLocaleTimeString(),
                   used: res.data.usedToday
@@ -104,7 +100,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
       ws.onclose = () => {
         setConnected(false);
-        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
+        reconnectRef.current = setTimeout(connectWebSocket, 3000);
       };
 
       ws.onerror = () => ws.close();
@@ -113,29 +109,60 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
     connectWebSocket();
 
     return () => {
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
       if (wsRef.current) wsRef.current.close();
     };
   }, [userId, borewellNo]);
 
-  /* ================= AUTO COUNTDOWN ================= */
+  /* ================= COUNTDOWN ================= */
   useEffect(() => {
-  if (remainingSeconds === null) return;
+    if (remainingSeconds === null) return;
 
-  const interval = setInterval(() => {
-    setRemainingSeconds(prev => {
-      if (prev === null) return null;
-      return Math.max(prev - 60, 0);
+    const interval = setInterval(() => {
+      setRemainingSeconds(prev =>
+        prev !== null ? Math.max(prev - 60, 0) : null
+      );
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [remainingSeconds]);
+
+  /* ================= PAYMENT ================= */
+  const costPerLiter = 10;
+
+  const amount = useMemo(() => {
+    return extraLiters && Number(extraLiters) > 0
+      ? Number(extraLiters) * costPerLiter
+      : 0;
+  }, [extraLiters]);
+
+  const upiId = "yourupi@upi"; // replace
+  const payeeName = "Water Authority";
+
+  const upiUrl = amount > 0
+    ? `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`
+    : '';
+
+  const handleRecharge = async () => {
+    if (!extraLiters || Number(extraLiters) <= 0) {
+      alert("Enter valid liters");
+      return;
+    }
+
+    await fetch(`${API_BASE}/api/recharge`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        borewellNo,
+        extraLiters: Number(extraLiters)
+      })
     });
-  }, 60000);
 
-  return () => clearInterval(interval);
-}, [remainingSeconds]);
+    setExtraLiters('');
+  };
 
-
-
-
-  /* ================= SET USAGE TYPE ================= */
+  /* ================= CHANGE USAGE TYPE ================= */
   const changeUsageType = async (type) => {
     await fetch(`${API_BASE}/api/usage-type`, {
       method: 'POST',
@@ -155,7 +182,9 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
     usageType,
     dailyLimit,
     usedToday,
-    status
+    status,
+    extraLitersPurchased,
+    totalExtraAmountPaid
   } = dashboardData;
 
   const usagePercent = Math.min(100, (usedToday / dailyLimit) * 100);
@@ -174,7 +203,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
       <div className="dashboard-card">
 
         <div className="dashboard-header">
-          <h1>Dashboard</h1>
+          <h1>Water Monitoring Dashboard</h1>
           <div className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>
             {connected ? '● Connected' : '○ Disconnected'}
           </div>
@@ -182,6 +211,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
         <div className="dashboard-content">
 
+          {/* USER INFO */}
           <div className="user-info">
             <div className="info-label">Name</div>
             <div className="info-value">{name}</div>
@@ -194,7 +224,6 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
             </div>
 
             <select
-              className="usage-dropdown"
               disabled={isFlowStarted}
               value={usageType}
               onChange={e => changeUsageType(e.target.value)}
@@ -209,7 +238,9 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
             <div className="info-value">{dailyLimit} L</div>
           </div>
 
+          {/* METRICS */}
           <div className="metrics-section">
+
             <div className="metric-card">
               <div className="metric-label">Remaining Time</div>
               <div className="metric-value">{formattedRemaining}</div>
@@ -229,7 +260,6 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
             <div className="metric-card">
               <div className="metric-label">Usage Trend</div>
-
               <ResponsiveContainer width="100%" height={160}>
                 <LineChart data={history}>
                   <XAxis hide />
@@ -237,36 +267,55 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
                   <Tooltip />
                   <Line
                     dataKey="used"
-                    stroke={
-                      status === 'exceeded'
-                        ? '#ef4444'
-                        : status === 'warning'
-                        ? '#facc15'
-                        : '#22c55e'
-                    }
                     strokeWidth={2}
                     dot={false}
                   />
                 </LineChart>
               </ResponsiveContainer>
             </div>
+
           </div>
 
-          <div className="status-section">
-            <div className={`status-indicator ${status}`}>
-              <div className="status-dot" />
-              {status.toUpperCase()}
+          {/* STATUS */}
+          <div className={`message ${status}`}>
+            {status === 'exceeded'
+              ? 'Limit exceeded - Water supply stopped'
+              : status === 'warning'
+              ? 'Approaching daily limit'
+              : 'Water available'}
+          </div>
+
+          {/* EXTRA USAGE SUMMARY */}
+          <div className="extra-summary">
+            <h3>Extra Usage Summary</h3>
+            <p>Extra Water Purchased: {extraLitersPurchased} L</p>
+            <p>Total Extra Paid: ₹{totalExtraAmountPaid}</p>
+          </div>
+
+          {/* QR PAYMENT SECTION */}
+          {status === 'exceeded' && (
+            <div className="recharge-section">
+              <h3>Buy Extra Water</h3>
+
+              <input
+                type="number"
+                placeholder="Enter extra liters"
+                value={extraLiters}
+                onChange={(e) => setExtraLiters(e.target.value)}
+              />
+
+              {amount > 0 && (
+                <>
+                  <p>Total Amount: ₹{amount}</p>
+                  <QRCodeCanvas value={upiUrl} size={200} />
+                  <button onClick={handleRecharge}>
+                    I Have Paid
+                  </button>
+                </>
+              )}
             </div>
-          </div>
+          )}
 
-        </div>
-
-        <div className={`message ${status}`}>
-          {status === 'exceeded'
-            ? 'Limit exceeded - Water supply stopped'
-            : status === 'warning'
-            ? 'Approaching daily limit'
-            : 'Water available'}
         </div>
       </div>
 
