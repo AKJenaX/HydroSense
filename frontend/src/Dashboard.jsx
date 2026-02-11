@@ -9,6 +9,17 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+/* ================= BASE URL CONFIG ================= */
+const API_BASE =
+  window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://ugms-water-monitor.onrender.com';
+
+const WS_BASE =
+  window.location.hostname === 'localhost'
+    ? 'ws://localhost:3001'
+    : 'wss://ugms-water-monitor.onrender.com';
+
 const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
   const [dashboardData, setDashboardData] = useState(null);
   const [history, setHistory] = useState([]);
@@ -20,7 +31,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
   /* ================= INITIAL LOAD ================= */
   useEffect(() => {
-    fetch(`http://localhost:3001/api/dashboard/${userId}/${borewellNo}`)
+    fetch(`${API_BASE}/api/dashboard/${userId}/${borewellNo}`)
       .then(res => res.json())
       .then(data => {
         setDashboardData(data);
@@ -32,7 +43,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
   /* ================= WEBSOCKET ================= */
   useEffect(() => {
     const connectWebSocket = () => {
-      const ws = new WebSocket('ws://localhost:3001');
+      const ws = new WebSocket(WS_BASE);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -91,7 +102,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
   /* ================= SET USAGE TYPE ================= */
   const changeUsageType = async (type) => {
-    await fetch('http://localhost:3001/api/usage-type', {
+    await fetch(`${API_BASE}/api/usage-type`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
