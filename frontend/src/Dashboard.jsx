@@ -123,11 +123,15 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
   if (remainingSeconds === null) return;
 
   const interval = setInterval(() => {
-    setRemainingSeconds(prev => Math.max(prev - 60, 0));
+    setRemainingSeconds(prev => {
+      if (prev === null) return null;
+      return Math.max(prev - 60, 0);
+    });
   }, 60000);
 
   return () => clearInterval(interval);
-}, [remainingSeconds !== null]);
+}, [remainingSeconds]);
+
 
 
 

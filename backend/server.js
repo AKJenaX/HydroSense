@@ -6,7 +6,7 @@ const cors = require('cors');
 const path = require('path');
 
 // ================= CONSTANTS =================
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // IST = UTC + 5:30
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 // ================= TELEGRAM =================
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -20,12 +20,9 @@ const wss = new WebSocket.Server({ server });
 app.use(cors());
 app.use(express.json());
 
-// ================= TELEGRAM FUNCTION =================
+// ================= TELEGRAM =================
 async function sendTelegramAlert(message) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.log("⚠️ Telegram ENV variables not set");
-    return;
-  }
+  if (!TELEGRAM_BOT_TOKEN || !TEGRAM_CHAT_ID) return;
 
   try {
     await axios.post(
@@ -42,7 +39,7 @@ async function sendTelegramAlert(message) {
   }
 }
 
-// ================= USAGE TYPE LIMITS =================
+// ================= LIMITS =================
 const USAGE_LIMITS = {
   home: 100,
   apartment: 500,
@@ -53,23 +50,24 @@ const USAGE_LIMITS = {
 // ================= USER STORE =================
 const userData = new Map();
 
-// ================= GET IST MIDNIGHT TIMESTAMP =================
+// ================= TIME HELPERS =================
 function getISTMidnightTimestamp() {
   const nowUTC = Date.now();
   const nowIST = nowUTC + IST_OFFSET_MS;
-
   const istDate = new Date(nowIST);
-
-  // Set to 00:00 IST
   istDate.setHours(0, 0, 0, 0);
-
-  // Convert back to UTC timestamp
   return istDate.getTime() - IST_OFFSET_MS;
 }
 
-// ================= GET NEXT IST MIDNIGHT =================
 function getNextISTMidnightTimestamp() {
   return getISTMidnightTimestamp() + 24 * 60 * 60 * 1000;
+}
+
+function getRemainingTime() {
+  const diff = getNextISTMidnightTimestamp() - Date.now();
+  const h = Math.floor(diff / (1000 * 60 * 60));
+  const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  return `${h}h ${m}m`;
 }
 
 // ================= USER INIT =================
@@ -105,19 +103,6 @@ function checkAndResetDaily(obj) {
   }
 }
 
-// ================= TIME LEFT =================
-function getRemainingTime() {
-  const now = Date.now();
-  const nextMidnight = getNextISTMidnightTimestamp();
-
-  const diff = nextMidnight - now;
-
-  const h = Math.floor(diff / (1000 * 60 * 60));
-  const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-  return `${h}h ${m}m`;
-}
-
 // ================= DASHBOARD LOGIC =================
 function calculateDashboardData(obj, userId, borewellNo) {
   checkAndResetDaily(obj);
@@ -126,7 +111,7 @@ function calculateDashboardData(obj, userId, borewellNo) {
   const used = obj.usedToday;
   const warningLimit = limit * 0.8;
 
-  let status = obj.status;
+  let status = 'normal';
 
   if (used >= limit) {
     status = 'exceeded';
@@ -135,7 +120,6 @@ function calculateDashboardData(obj, userId, borewellNo) {
       sendTelegramAlert(
         `🚫 *WATER LIMIT REACHED*\n\n` +
         `Borewell: ${borewellNo}\n` +
-        `Usage Type: ${obj.usageType.toUpperCase()}\n` +
         `Used: ${limit} / ${limit} L\n\n` +
         `❌ Supply stopped`
       );
@@ -148,14 +132,12 @@ function calculateDashboardData(obj, userId, borewellNo) {
       sendTelegramAlert(
         `⚠️ *WATER USAGE WARNING*\n\n` +
         `Borewell: ${borewellNo}\n` +
-        `Usage Type: ${obj.usageType.toUpperCase()}\n` +
         `Used: ${used.toFixed(1)} / ${limit} L\n\n` +
         `⚠️ 80% limit crossed`
       );
       obj.lastAlert = 'warning';
     }
   } else {
-    status = 'normal';
     obj.lastAlert = null;
   }
 
@@ -201,7 +183,7 @@ wss.on('connection', ws => {
         ws.send(JSON.stringify({ type: 'update', data: dashboardData }));
       }
     } catch (err) {
-      console.error('WebSocket parse error:', err.message);
+      console.error('WebSocket error:', err.message);
     }
   });
 });
@@ -209,19 +191,16 @@ wss.on('connection', ws => {
 // ================= API ROUTES =================
 app.get('/api/dashboard/:userId/:borewellNo', (req, res) => {
   const { userId, borewellNo } = req.params;
-
   const obj = getUserData(userId, borewellNo);
-  const dashboardData = calculateDashboardData(obj, userId, borewellNo);
-
-  res.json(dashboardData);
+  res.json(calculateDashboardData(obj, userId, borewellNo));
 });
 
+// Change usage type
 app.post('/api/usage-type', (req, res) => {
   const { userId, borewellNo, usageType } = req.body;
 
-  if (!USAGE_LIMITS[usageType]) {
+  if (!USAGE_LIMITS[usageType])
     return res.status(400).json({ error: 'Invalid usage type' });
-  }
 
   const obj = getUserData(userId, borewellNo);
 
@@ -241,14 +220,24 @@ app.post('/api/usage-type', (req, res) => {
   res.json({ success: true, data: dashboardData });
 });
 
+// 🔥 FINAL FIXED WATER SYNC ROUTE
 app.post('/api/water-usage', (req, res) => {
-  const { userId, borewellNo, litersUsed } = req.body;
+  const { userId, borewellNo, totalLiters } = req.body;
+
+  if (totalLiters === undefined)
+    return res.status(400).json({ error: 'totalLiters required' });
 
   const obj = getUserData(userId, borewellNo);
   checkAndResetDaily(obj);
 
-  obj.usedToday += Number(litersUsed);
-  obj.usedToday = Math.min(obj.usedToday, obj.dailyLimit);
+  let value = Number(totalLiters);
+
+  if (isNaN(value) || value < 0) value = 0;
+
+  // Clamp to daily limit
+  obj.usedToday = Math.min(value, obj.dailyLimit);
+
+  console.log(`💧 Updated usage: ${obj.usedToday} L`);
 
   const dashboardData = calculateDashboardData(obj, userId, borewellNo);
 
@@ -260,14 +249,13 @@ app.post('/api/water-usage', (req, res) => {
   res.json({ success: true, data: dashboardData });
 });
 
-// ================= SERVE REACT FRONTEND =================
+// ================= FRONTEND =================
 app.use(express.static(path.join(__dirname, '../frontend/build')));
+app.get('*', (req, res) =>
+  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'))
+);
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-});
-
-// ================= START SERVER =================
+// ================= START =================
 const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, () => {
