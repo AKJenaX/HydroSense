@@ -5,7 +5,7 @@ const WebSocket = require('ws');
 const cors = require('cors');
 const path = require('path');
 
-// ================= TELEGRAM (USING ENV VARIABLES) =================
+// ================= TELEGRAM (ENV VARIABLES) =================
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -164,23 +164,39 @@ function broadcastToUser(userId, borewellNo, payload) {
 
 wss.on('connection', ws => {
   ws.on('message', msg => {
-    const data = JSON.parse(msg);
+    try {
+      const data = JSON.parse(msg);
 
-    if (data.type === 'subscribe') {
-      ws.userKey = `${data.userId}_${data.borewellNo}`;
+      if (data.type === 'subscribe') {
+        ws.userKey = `${data.userId}_${data.borewellNo}`;
 
-      const dashboardData = calculateDashboardData(
-        getUserData(data.userId, data.borewellNo),
-        data.userId,
-        data.borewellNo
-      );
+        const dashboardData = calculateDashboardData(
+          getUserData(data.userId, data.borewellNo),
+          data.userId,
+          data.borewellNo
+        );
 
-      ws.send(JSON.stringify({ type: 'update', data: dashboardData }));
+        ws.send(JSON.stringify({ type: 'update', data: dashboardData }));
+      }
+    } catch (err) {
+      console.error('WebSocket parse error:', err.message);
     }
   });
 });
 
 // ================= API ROUTES =================
+
+// 🔥 NEW ROUTE - INITIAL DASHBOARD LOAD
+app.get('/api/dashboard/:userId/:borewellNo', (req, res) => {
+  const { userId, borewellNo } = req.params;
+
+  const obj = getUserData(userId, borewellNo);
+
+  const dashboardData = calculateDashboardData(obj, userId, borewellNo);
+
+  res.json(dashboardData);
+});
+
 app.post('/api/usage-type', (req, res) => {
   const { userId, borewellNo, usageType } = req.body;
 
