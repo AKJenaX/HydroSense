@@ -1,35 +1,66 @@
+/**
+ * test-simulator.js
+ * Simulates ESP32 water flow updates
+ */
+
 const axios = require("axios");
 
-const API_BASE = "http://localhost:3001"; // local testing
+/* ================= CONFIG ================= */
+const SERVER_URL = "http://localhost:3001/api/water-usage"; 
+// ⚠️ change to LAN IP if backend is on another machine
 
-const userId = 1;
-const borewellNo = "BW001";
+const USER_ID = "1";
+const BOREWELL_NO = "BW001";
 
-let currentUsage = 0;
-let interval;
+/* ================= SIMULATION SETTINGS ================= */
+// liters per update (delta)
+const MIN_LITERS = 15;   // very slow flow
+const MAX_LITERS = 20;   // fast flow
 
-console.log("🚰 Water Usage Simulator Started...\n");
+// interval in milliseconds (same as ESP32: 2s)
+const INTERVAL = 2000;
 
-async function startFlow() {
+/* ================= STATE ================= */
+let running = true;
+let counter = 0;
 
-  interval = setInterval(async () => {
-    try {
+/* ================= SIMULATOR ================= */
+async function sendFakeFlow() {
+  if (!running) return;
 
-      currentUsage += 15;
+  // random flow delta
+  const litersUsed =
+    Math.random() * (MAX_LITERS - MIN_LITERS) + MIN_LITERS;
 
-      console.log(`➡ Sending usage: ${currentUsage} L`);
+  const payload = {
+    userId: USER_ID,
+    borewellNo: BOREWELL_NO,
+    litersUsed: Number(litersUsed.toFixed(3))
+  };
 
-      await axios.post(`${API_BASE}/api/water-usage`, {
-        userId,
-        borewellNo,
-        totalLiters: currentUsage   // 🔥 THIS MUST BE totalLiters
-      });
+  try {
+    const res = await axios.post(SERVER_URL, payload);
 
-    } catch (err) {
-      console.log("❌ Error:", err.response?.data || err.message);
+    const data = res.data?.data;
+
+    console.log(
+      `#${++counter}  Sent: ${payload.litersUsed} L  | ` +
+      `Used: ${data.usedToday.toFixed(2)} / ${data.dailyLimit} L  | ` +
+      `Status: ${data.status}`
+    );
+
+    if (data.status === "exceeded") {
+      console.log("🚨 LIMIT EXCEEDED – stopping simulator");
+      running = false;
     }
 
-  }, 3000); // every 3 seconds
+  } catch (err) {
+    console.error("❌ Error sending data:", err.message);
+  }
 }
 
-startFlow();
+/* ================= START ================= */
+console.log("🚰 Water Flow Simulator Started");
+console.log("Press CTRL + C to stop\n");
+
+setInterval(sendFakeFlow, INTERVAL);
