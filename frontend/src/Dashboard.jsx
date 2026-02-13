@@ -10,8 +10,9 @@ import {
 } from 'recharts';
 
 /* ================= BACKEND CONFIG ================= */
-const API_BASE = 'http://localhost:3001';
-const WS_BASE  = 'ws://localhost:3001';
+const API_BASE = 'https://ugms-water-monitor.onrender.com';
+const WS_BASE  = 'wss://ugms-water-monitor.onrender.com';
+
 
 /* ================= DEVICE TIMEOUT ================= */
 const DEVICE_TIMEOUT = 5000;
