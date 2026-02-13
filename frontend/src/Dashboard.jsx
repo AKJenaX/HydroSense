@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import './Dashboard.css';
-import { QRCodeCanvas } from 'qrcode.react';
 import {
   LineChart,
   Line,
@@ -11,16 +10,11 @@ import {
 } from 'recharts';
 
 /* ================= BACKEND CONFIG ================= */
-const API_BASE =
-  window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://ugms-water-monitor.onrender.com';
+const API_BASE = 'http://localhost:3001';
+const WS_BASE  = 'ws://localhost:3001';
 
-const WS_BASE =
-  window.location.hostname === 'localhost'
-    ? 'ws://localhost:3001'
-    : 'https://ugms-water-monitor.onrender.com';
-
+/* ================= DEVICE TIMEOUT ================= */
+const DEVICE_TIMEOUT = 5000;
 
 const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
@@ -61,7 +55,6 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        setConnected(true);
         ws.send(JSON.stringify({
           type: 'subscribe',
           userId,
@@ -71,7 +64,6 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
       ws.onmessage = event => {
         const msg = JSON.parse(event.data);
-
         if (msg.type === 'update') {
           setDashboardData(msg.data);
           setHistory(prev =>
@@ -87,7 +79,6 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
       };
 
       ws.onclose = () => {
-        setConnected(false);
         reconnectRef.current = setTimeout(connect, 3000);
       };
 
@@ -102,7 +93,41 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
     };
   }, [userId, borewellNo]);
 
-  /* ================= PAYMENT ================= */
+  /* ================= DEVICE ONLINE ================= */
+  useEffect(() => {
+    if (!dashboardData?.lastSeen) {
+      setConnected(false);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setConnected(Date.now() - dashboardData.lastSeen < DEVICE_TIMEOUT);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [dashboardData]);
+
+  /* ================= CHANGE USAGE TYPE ================= */
+  const updateUsageType = async (newType) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/update-usage-type`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          borewellNo,
+          usageType: newType
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to update usage type');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update usage type');
+    }
+  };
+
+  /* ================= PAYMENT (RAZORPAY) ================= */
   const costPerLiter = 10;
 
   const amount = useMemo(() => {
@@ -111,42 +136,59 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
       : 0;
   }, [extraLiters]);
 
-  const upiUrl = amount > 0
-    ? `upi://pay?pa=vritika042@oksbi&pn=Water Authority&am=${amount}&cu=INR`
-    : '';
-
   const handleRecharge = async () => {
-    await fetch(`${API_BASE}/api/recharge`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        borewellNo,
-        extraLiters: Number(extraLiters)
-      })
-    });
+    try {
+      const res = await fetch(`${API_BASE}/api/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          borewellNo,
+          extraLiters: Number(extraLiters)
+        })
+      });
 
-    setExtraLiters('');
+      const order = await res.json();
+
+      const options = {
+        key: process.env.REACT_APP_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: 'INR',
+        name: 'Water Authority',
+        description: 'Extra Water Recharge',
+        order_id: order.id,
+        handler: async function (response) {
+          await fetch(`${API_BASE}/api/verify-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(response)
+          });
+          setExtraLiters('');
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+
+    } catch (err) {
+      console.error(err);
+      alert('Payment failed');
+    }
   };
 
   /* ================= RESET ================= */
   const handleReset = async () => {
-    const confirmReset = window.confirm('Reset water usage?');
-    if (!confirmReset) return;
+    if (!window.confirm('Reset water usage?')) return;
 
     setResetting(true);
-
     try {
       const res = await fetch(`${API_BASE}/api/reset-usage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, borewellNo })
       });
-
       if (!res.ok) throw new Error('Reset failed');
-
       setHistory([]);
-
     } catch (err) {
       alert('Reset request failed');
       console.error(err);
@@ -169,13 +211,15 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
     totalAllowed
   } = dashboardData;
 
-  const usagePercent = Math.min(100, (usedToday / totalAllowed) * 100);
+  const usagePercent = Math.min(
+    100,
+    (usedToday / Math.max(totalAllowed, 1)) * 100
+  );
 
   /* ================= COUNTDOWN ================= */
   const remainingTime = (() => {
     const diff = nextResetAt - currentTime;
     if (diff <= 0) return '0h 0m 0s';
-
     const h = Math.floor(diff / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
     const s = Math.floor((diff % 60000) / 1000);
@@ -187,8 +231,7 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
     <div className="dashboard-container">
       <div className="dashboard-layout">
 
-        {/* ================= DASHBOARD CARD ================= */}
-        <div className="dashboard-card">
+        <div className="dashboard-card command-main">
 
           <div className="dashboard-header">
             <h1>Water Monitoring Dashboard</h1>
@@ -199,7 +242,6 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
 
           <div className="dashboard-content">
 
-            {/* USER INFO */}
             <div className="user-info">
               <div className="info-label">Name</div>
               <div className="info-value">{name}</div>
@@ -210,19 +252,19 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
               <div className="info-label">Usage Type</div>
               <select
                 className="usage-dropdown"
-                disabled
                 value={usageType}
+                onChange={e => updateUsageType(e.target.value)}
               >
-                <option>{usageType}</option>
+                <option value="home">Apartment</option>
+                <option value="commercial">Commercial</option>
+                <option value="industry">Industry</option>
               </select>
 
               <div className="info-label">Daily Limit</div>
               <div className="info-value">{dailyLimit} L</div>
             </div>
 
-            {/* METRICS */}
             <div className="metrics-section">
-
               <div className="metric-card">
                 <div className="metric-label">Remaining Time</div>
                 <div className="metric-value">{remainingTime}</div>
@@ -249,10 +291,8 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-
             </div>
 
-            {/* STATUS MESSAGE */}
             <div className={`message ${status}`}>
               {status === 'exceeded'
                 ? 'Limit exceeded - Water supply stopped'
@@ -261,14 +301,12 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
                 : 'Water available'}
             </div>
 
-            {/* RESET */}
             {status === 'exceeded' && (
               <button onClick={handleReset} disabled={resetting}>
                 {resetting ? 'Resetting...' : 'RESET WATER USAGE'}
               </button>
             )}
 
-            {/* EXTRA SUMMARY */}
             <div className="extra-summary">
               <h3>Extra Usage Summary</h3>
               <p>Extra Water Purchased: {extraLitersPurchased} L</p>
@@ -278,11 +316,9 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
           </div>
         </div>
 
-        {/* ================= RECHARGE CARD ================= */}
         {status === 'exceeded' && (
-          <div className="desktop-recharge">
+          <div className="desktop-recharge command-recharge">
             <div className="recharge-section">
-
               <h3>Recharge Water</h3>
 
               <input
@@ -295,17 +331,11 @@ const Dashboard = ({ userId = '1', borewellNo = 'BW001' }) => {
               {amount > 0 && (
                 <>
                   <p>Total Amount: ₹{amount}</p>
-
-                  <div className="qr-wrapper">
-                    <QRCodeCanvas value={upiUrl} size={200} />
-                  </div>
-
                   <button onClick={handleRecharge}>
-                    I Have Paid
+                    Pay via Razorpay
                   </button>
                 </>
               )}
-
             </div>
           </div>
         )}

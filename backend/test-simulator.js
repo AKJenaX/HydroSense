@@ -15,7 +15,7 @@ const BOREWELL_NO = "BW001";
 /* ================= SIMULATION SETTINGS ================= */
 // liters per update (delta)
 const MIN_LITERS = 15;   // very slow flow
-const MAX_LITERS = 20;   // fast flow
+const MAX_LITERS = 25;   // fast flow
 
 // interval in milliseconds (same as ESP32: 2s)
 const INTERVAL = 2000;

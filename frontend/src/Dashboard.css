@@ -46,9 +46,10 @@
 .dashboard-header {
   background: linear-gradient(180deg, rgba(2, 6, 23, 0.95), rgba(15, 23, 42, 0.95));
   padding: 28px 30px;
-  position: relative;
-  text-align: center;
   border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .dashboard-header h1 {
@@ -56,13 +57,12 @@
   font-weight: 600;
   letter-spacing: 0.8px;
   color: #F8FAFC;
+  text-align: center;
+  flex: 1;
 }
 
 /* ================== CONNECTION ================== */
 .connection-status {
-  position: absolute;
-  top: 18px;
-  right: 22px;
   padding: 6px 14px;
   border-radius: 999px;
   font-size: 11px;
@@ -96,7 +96,6 @@
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
 }
 
-/* FIXED CONTRAST */
 .info-label {
   font-size: 11px;
   letter-spacing: 1.2px;
@@ -161,47 +160,27 @@
   height: 6px;
   background: rgba(148, 163, 184, 0.2);
   border-radius: 999px;
-  overflow: hidden;
   margin-top: 14px;
+  overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
   border-radius: 999px;
-  position: relative;
 }
 
 .progress-fill.normal { background: linear-gradient(90deg, #22C55E, #16A34A); }
 .progress-fill.warning { background: linear-gradient(90deg, #FACC15, #EAB308); }
 .progress-fill.exceeded { background: linear-gradient(90deg, #EF4444, #DC2626); }
 
-.progress-fill::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(120deg, rgba(255,255,255,0.35), rgba(255,255,255,0.05), rgba(255,255,255,0.35));
-  opacity: 0.3;
-  animation: waterShimmer 6.5s linear infinite;
-}
-
 /* ================== MESSAGE ================== */
 .message {
-  margin: 20px 26px;
-  padding: 16px 18px;
+  margin-top: 20px;
+  padding: 16px;
   border-radius: 16px;
   font-size: 13px;
   font-weight: 600;
   text-align: center;
-}
-
-.message.normal {
-  background: rgba(34, 197, 94, 0.25);
-  color: #4ADE80;
-}
-
-.message.warning {
-  background: rgba(234, 179, 8, 0.25);
-  color: #FACC15;
 }
 
 .message.exceeded {
@@ -210,29 +189,28 @@
 }
 
 /* ================== RESET BUTTON ================== */
-.dashboard-content > button {
-  margin: 10px 26px 0;
-  padding: 12px;
-  width: calc(100% - 52px);
-  border-radius: 14px;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.8px;
-  background: linear-gradient(90deg, #EF4444, #DC2626);
-  color: #FFFFFF;
+button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.8), rgba(88, 28, 28, 0.9));
+  color: #FECACA;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.35);
+  transition: all 0.25s ease;
 }
 
-.dashboard-content > button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(239, 68, 68, 0.35);
 }
 
 /* ================== EXTRA SUMMARY ================== */
 .extra-summary {
-  margin-top: 22px;
+  margin-top: 20px;
   padding: 20px;
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(30,41,59,0.95), rgba(37,54,82,0.95));
@@ -256,88 +234,31 @@
 /* ================== RECHARGE ================== */
 .desktop-recharge {
   width: 380px;
-  align-self: flex-start;
 }
-/* ===== TOTAL AMOUNT TEXT (FIX VISIBILITY) ===== */
-.recharge-section p {
-  margin-top: 14px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #F8FAFC;              /* bright readable */
-  letter-spacing: 0.3px;
-}
-
 
 .recharge-section {
-  padding: 22px;
-  border-radius: 22px;
   background: linear-gradient(180deg, rgba(30,41,59,0.95), rgba(37,54,82,0.95));
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  box-shadow: 0 20px 45px rgba(0,0,0,0.45);
-  text-align: center;
+  border-radius: 26px;
+  padding: 26px;
+  border: 1px solid rgba(148,163,184,0.22);
+  box-shadow: 0 30px 70px rgba(0,0,0,0.55);
 }
 
 .recharge-section h3 {
-  font-size: 14px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: #FCA5A5;
-  margin-bottom: 14px;
-}
-
-/* ================== INPUT ================== */
-.recharge-section input {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(239,68,68,0.45);
-  background: #1E293B;
+  font-size: 16px;
   color: #F8FAFC;
+  margin-bottom: 16px;
 }
-/* ===== EXTRA LITERS INPUT (BIGGER VALUE) ===== */
+
 .recharge-section input {
-  font-size: 18px;             /* bigger number */
-  font-weight: 700;
-  text-align: center;          /* optional but looks premium */
-}
-
-.recharge-section input::placeholder {
-  color: #CBD5E1;
-  opacity: 0.85;
-}
-
-/* ================== QR ================== */
-.qr-wrapper {
-  margin-top: 18px;
+  width: 100%;
   padding: 14px;
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 60%),
-    linear-gradient(180deg, rgba(15,23,42,0.95), rgba(2,6,23,0.95));
-  border: 1px solid rgba(56,189,248,0.3);
-  box-shadow:
-    inset 0 0 25px rgba(56,189,248,0.18),
-    0 10px 25px rgba(0,0,0,0.45);
-}
-
-.qr-wrapper canvas {
-  width: 100%;
-  border-radius: 12px;
-  background: #FFFFFF;
-  padding: 8px;
-}
-
-/* ================== BUTTON ================== */
-.recharge-section button {
-  margin-top: 18px;
-  width: 100%;
-  padding: 12px;
   border-radius: 14px;
-  border: none;
-  font-weight: 600;
-  background: linear-gradient(90deg, #EF4444, #DC2626);
-  color: #FFFFFF;
-  cursor: pointer;
+  border: 1px solid rgba(56,189,248,0.4);
+  background: #020617;
+  color: #F8FAFC;
+  font-size: 14px;
+  margin-bottom: 16px;
 }
 
 /* ================== MOBILE ================== */
@@ -352,9 +273,127 @@
     max-width: 480px;
   }
 }
+/* ================== RECHARGE INPUT FIX ================== */
+.recharge-section input {
+  font-size: 18px;          /* bigger numbers */
+  font-weight: 700;
+  padding: 16px 18px;       /* more breathing space */
+  letter-spacing: 0.5px;
+}
 
-/* ================== ANIMATION ================== */
-@keyframes waterShimmer {
-  from { transform: translateX(-60%); }
-  to { transform: translateX(60%); }
+/* ================== TOTAL AMOUNT FIX ================== */
+.recharge-section p {
+  margin: 14px 0 18px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #CBD5E1;
+  text-align: center;
+}
+
+/* Highlight the amount */
+.recharge-section p::after {
+  content: "";
+  display: block;
+  height: 1px;
+  margin-top: 12px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(148,163,184,0.4),
+    transparent
+  );
+}
+
+/* ================== QR ALIGNMENT ================== */
+.qr-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0;
+}
+
+/* ================== PAY BUTTON REFINEMENT ================== */
+.recharge-section button {
+  margin-top: 16px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 16px;
+}
+
+/* =========================================================
+   DESKTOP COMMAND CENTER LAYOUT (DESKTOP ONLY)
+   ========================================================= */
+/* =========================================================
+   DESKTOP OPTIMAL LAYOUT (SAFE + GUARANTEED)
+   ========================================================= */
+@media (min-width: 1024px) {
+
+  /* Make main dashboard wider */
+  .dashboard-card {
+    max-width: 1000px;
+    width: 100%;
+    border-radius: 20px;
+  }
+
+  /* Split content into two columns */
+  .dashboard-content {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  /* Left column feel */
+  .user-info,
+  .extra-summary {
+    margin-top: 0;
+  }
+
+  /* Right column emphasis */
+  .metrics-section {
+    margin-top: 0;
+  }
+
+  /* Chart gets more space */
+  .metrics-section .metric-card:last-child {
+    min-height: 260px;
+  }
+
+  /* Center card on page, not phone-sized */
+  .dashboard-layout {
+    justify-content: center;
+  }
+}
+
+/* =========================================================
+   DESKTOP BACKGROUND & OUTER SPACING FIX (ONLY)
+   ========================================================= */
+@media (min-width: 1024px) {
+
+  /* Reduce excessive background space */
+  .dashboard-container {
+    padding: 24px;
+  }
+
+  /* Pull dashboard + recharge closer together */
+  .dashboard-layout {
+    gap: 24px;
+  }
+
+  /* Prevent floating-in-space feeling */
+  .dashboard-layout::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 80%;
+    height: 65%;
+    background: rgba(0, 0, 0, 0.10);
+    filter: blur(140px);
+    z-index: -1;
+  }
+
+  .dashboard-layout {
+    position: relative;
+  }
 }
