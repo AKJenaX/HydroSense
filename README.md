@@ -378,24 +378,10 @@ Follow similar steps, ensuring:
 - Frontend environment variables point to backend
 - All `.env` variables are configured in the platform's settings
 
----
+--
 
-## 📄 License
-
-This project is proprietary and confidential.
-
----
-
-## 👥 Contributors
-
-- **Team HydroSense**
-
----
-
-## 📞 Support
-
-For issues or questions, contact the development team.
-
----
-
-**Last Updated:** May 2026
+## 👥 Team
+| [Ritika Verma] | Backend Developer | (https://github.com/AKJenaX) 
+| [Sushil Kumar Gauda] | Full Stack & Hardware | (https://github.com/skg2k05) 
+| [Muskan Choudhary] | Hardware Engineer |
+| [Ritika Verma] | Frontend Developer |
