@@ -331,29 +331,34 @@ app.post('/api/verify-payment', async (req, res) => {
     razorpay_signature
   } = req.body;
 
-  const generatedSignature = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-    .digest('hex');
+  try {
+    const generatedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
 
-  if (generatedSignature !== razorpay_signature) {
-    return res.status(400).json({ error: 'Payment verification failed' });
+    if (generatedSignature !== razorpay_signature) {
+      return res.status(400).json({ error: 'Payment verification failed' });
+    }
+
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+    const { userId, borewellNo, liters } = order.notes;
+
+    const obj = getUserData(userId, borewellNo);
+    const amount = Number(liters) * COST_PER_LITER;
+
+    obj.extraLitersPurchased += Number(liters);
+    obj.totalExtraAmountPaid += amount;
+    obj.lastAlert = null;
+
+    const data = calculateDashboardData(obj, userId, borewellNo);
+    broadcastToUser(userId, borewellNo, { type: 'update', data });
+
+    res.json({ success: true, amountPaid: amount, data });
+  } catch (err) {
+    console.error('Payment verification error:', err.message);
+    res.status(500).json({ error: 'Payment verification failed' });
   }
-
-  const order = await razorpay.orders.fetch(razorpay_order_id);
-  const { userId, borewellNo, liters } = order.notes;
-
-  const obj = getUserData(userId, borewellNo);
-  const amount = Number(liters) * COST_PER_LITER;
-
-  obj.extraLitersPurchased += Number(liters);
-  obj.totalExtraAmountPaid += amount;
-  obj.lastAlert = null;
-
-  const data = calculateDashboardData(obj, userId, borewellNo);
-  broadcastToUser(userId, borewellNo, { type: 'update', data });
-
-  res.json({ success: true, amountPaid: amount, data });
 });
 
 // Manual reset
