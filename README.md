@@ -381,7 +381,10 @@ Follow similar steps, ensuring:
 --
 
 ## 👥 Team
-| [Ritika Verma] | Backend Developer | (https://github.com/AKJenaX) 
-| [Sushil Kumar Gauda] | Full Stack & Hardware | (https://github.com/skg2k05) 
-| [Muskan Choudhary] | Hardware Engineer |
-| [Ritika Verma] | Frontend Developer |
+
+| Name | Role |
+|---|---|
+| [Anup Kumar Jena](https://github.com/AKJenaX) | Backend Developer |
+| [Ritika Verma](https://www.linkedin.com/in/ritika-verma-4aab42354/) | Frontend Developer |
+| [Sushil Kumar Gauda](https://github.com/skg2k05) | Full Stack Developer |
+| [Muskan Choudhary](https://www.linkedin.com/in/muskan-choudhary-a174852bb/) | Hardware Engineer |
