@@ -1,0 +1,40 @@
+name: HydroSense CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install backend dependencies
+        run: cd backend && npm install
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm install
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+
+      - name: Check for accidental .env commit
+        run: |
+          if [ -f backend/.env ]; then
+            echo "ERROR: .env file is committed! Remove it immediately."
+            exit 1
+          fi
+          if [ -f frontend/.env ]; then
+            echo "ERROR: frontend .env file is committed! Remove it immediately."
+            exit 1
+          fi

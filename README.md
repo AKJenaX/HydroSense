@@ -1,3 +1,12 @@
+<!-- Remember to add GitHub topics: iot, esp32, nodejs, websockets, razorpay, telegram, sdg6, water-monitoring -->
+
+![Node.js](https://img.shields.io/badge/Node.js-18+-green)
+![ESP32](https://img.shields.io/badge/Hardware-ESP32-blue)
+![WebSockets](https://img.shields.io/badge/Realtime-WebSockets-yellow)
+![Razorpay](https://img.shields.io/badge/Payment-Razorpay-blueviolet)
+![SDG6](https://img.shields.io/badge/SDG-6%20Clean%20Water-00AEEF)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
+
 # HydroSense: Smart Underground Water Monitoring System
 
 ## 🌊 Project Overview
